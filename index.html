@@ -755,7 +755,7 @@
             localStorage.removeItem('currentUser');
         }
 
-        // Generate request number with format: MR-DIV-001-M-YYYY
+        // Generate request number with format: MR-DIV-001-MM-YYYY
         function generateRequestNumber(division) {
             const now = new Date();
             const currentMonth = now.getMonth() + 1;
@@ -774,11 +774,15 @@
             const divisionCode = divisionCodes[division] || 'UNK';
             const counter = requestCounters.counters[division] || 1;
             const counterStr = String(counter).padStart(3, '0');
+            const monthStr = String(currentMonth).padStart(2, '0');
             
-            const requestNumber = `MR-${divisionCode}-${counterStr}-${currentMonth}-${currentYear}`;
+            const requestNumber = `MR-${divisionCode}-${counterStr}-${monthStr}-${currentYear}`;
             
             // Increment counter for next request
             requestCounters.counters[division] = counter + 1;
+            
+            // Save updated counters
+            saveDataToStorage();
             
             return requestNumber;
         }
@@ -1001,6 +1005,8 @@
                     }
                 ];
                 saveDataToStorage();
+            } else {
+                loadDataFromStorage();
             }
             
             if (!storedTransactions) {
@@ -1041,10 +1047,14 @@
                     }
                 ];
                 saveDataToStorage();
+            } else {
+                loadDataFromStorage();
             }
             
             if (storedCounters) {
                 requestCounters = JSON.parse(storedCounters);
+            } else {
+                saveDataToStorage();
             }
         }
 
@@ -2742,5 +2752,5 @@
             setInterval(checkForNewActivities, 3000);
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9847883017e20566',t:'MTc1ODc3MTk2MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9847b389554d4fef',t:'MTc1ODc3MzczNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
