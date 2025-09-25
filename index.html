@@ -1,0 +1,2168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Gudang Multi-User</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        .status-pending { @apply bg-yellow-100 text-yellow-800; }
+        .status-approved { @apply bg-green-100 text-green-800; }
+        .status-rejected { @apply bg-red-100 text-red-800; }
+        .status-waiting-staff { @apply bg-blue-100 text-blue-800; }
+        .status-waiting-manager { @apply bg-purple-100 text-purple-800; }
+        .notification-badge {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .blink {
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <div class="text-center mb-8">
+                <div class="bg-blue-600 p-4 rounded-full w-20 h-20 mx-auto mb-4">
+                    <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">Sistem Gudang Multi-User</h1>
+                <p class="text-gray-600">Masuk dengan akun Anda</p>
+            </div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                        <select id="loginUsername" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Pilih User</option>
+                            <option value="ga_warehouse">👤 Warehouse Staff</option>
+                            <option value="building_manager">🏢 Building Manager</option>
+                            <option value="security_user">🛡️ Security Division</option>
+                            <option value="engineering_user">🔧 Engineering Division</option>
+                            <option value="housekeeping_user">🧹 Housekeeping Division</option>
+                            <option value="backoffice_user">💼 Back Office Division</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="loginPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Masukkan password">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors">
+                        Masuk
+                    </button>
+                </div>
+            </form>
+            
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                <p class="text-xs text-gray-600 font-medium mb-2">Demo Passwords:</p>
+                <div class="text-xs text-gray-500 space-y-1">
+                    <p>👤 Warehouse: ga_warehouse_epa001</p>
+                    <p>🏢 Manager: manager_epa001</p>
+                    <p>🛡️ Security: security_epa001</p>
+                    <p>🔧 Engineering: engineering_epa001</p>
+                    <p>🧹 Housekeeping: housekeeping_epa001</p>
+                    <p>💼 Back Office: backoffice_epa001</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-lg border-b-4 border-blue-600">
+            <div class="container mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-blue-600 p-2 rounded-lg">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-800">Sistem Gudang Multi-User</h1>
+                            <p class="text-sm text-gray-600">Manajemen Inventory & Permintaan</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- Notification Badge for Building Manager -->
+                        <div id="notificationBadge" class="hidden relative">
+                            <div class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center notification-badge blink">
+                                <span id="notificationCount" class="text-sm font-bold">0</span>
+                            </div>
+                            <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full"></div>
+                        </div>
+                        
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">Selamat datang,</p>
+                            <p class="font-semibold text-gray-800" id="currentUserName">User</p>
+                            <p class="text-xs text-blue-600" id="currentUserRole">Role</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span class="text-white font-semibold" id="userInitials">U</span>
+                        </div>
+                        <button onclick="logout()" class="text-red-600 hover:text-red-800 font-medium">
+                            Keluar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm border-b">
+            <div class="container mx-auto px-6">
+                <div class="flex space-x-8 overflow-x-auto" id="navigationMenu">
+                    <!-- Navigation items will be populated based on user role -->
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-6 py-8">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="section">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-600">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Total Barang</p>
+                                <p class="text-3xl font-bold text-gray-900" id="totalItems">1,247</p>
+                                <p class="text-xs text-green-600 mt-1">+12 dari bulan lalu</p>
+                            </div>
+                            <div class="bg-blue-100 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Stok Rendah</p>
+                                <p class="text-3xl font-bold text-gray-900" id="lowStock">23</p>
+                                <p class="text-xs text-red-600 mt-1">Perlu perhatian</p>
+                            </div>
+                            <div class="bg-red-100 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Barang Masuk Hari Ini</p>
+                                <p class="text-3xl font-bold text-gray-900" id="todayIncoming">156</p>
+                                <p class="text-xs text-green-600 mt-1">8 transaksi</p>
+                            </div>
+                            <div class="bg-green-100 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Barang Keluar Hari Ini</p>
+                                <p class="text-3xl font-bold text-gray-900" id="todayOutgoing">89</p>
+                                <p class="text-xs text-orange-600 mt-1">12 transaksi</p>
+                            </div>
+                            <div class="bg-orange-100 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="quickActions">
+                    <!-- Quick action buttons will be populated based on user role -->
+                </div>
+
+                <!-- Recent Activities -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Aktivitas Terbaru</h3>
+                    <div class="space-y-4" id="recentActivities">
+                        <!-- Activities will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Section -->
+            <div id="inventory" class="section hidden">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800">Kelola Inventory</h3>
+                        <button id="addItemBtn" onclick="showAddItemModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors hidden">
+                            + Tambah Barang
+                        </button>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+                        <input type="text" id="searchInput" placeholder="Cari barang..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" onkeyup="filterItems()">
+                        
+                        <select id="categoryFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterItems()">
+                            <option value="">Semua Kategori</option>
+                            <option value="Elektronik">Elektronik</option>
+                            <option value="Furniture">Furniture</option>
+                            <option value="Alat Tulis">Alat Tulis</option>
+                            <option value="Cleaning">Cleaning</option>
+                            <option value="Security">Security</option>
+                            <option value="Engineering">Engineering</option>
+                        </select>
+
+                        <select id="typeFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterItems()">
+                            <option value="">Semua Tipe</option>
+                            <option value="Capex">💰 Capex (Aset)</option>
+                            <option value="Opex">🔄 Opex (Operasional)</option>
+                        </select>
+
+                        <select id="classificationFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterItems()">
+                            <option value="">Semua Klasifikasi</option>
+                            <option value="Asset">🏢 Asset</option>
+                            <option value="Consumable">📦 Consumable</option>
+                            <option value="Non-Consumable">🔧 Non-Consumable</option>
+                        </select>
+
+                        <select id="movementFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterItems()">
+                            <option value="">Semua Pergerakan</option>
+                            <option value="Fast Moving">🚀 Fast Moving</option>
+                            <option value="Normal Moving">📊 Normal Moving</option>
+                            <option value="Slow Moving">🐌 Slow Moving</option>
+                        </select>
+
+                        <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterItems()">
+                            <option value="">Semua Status</option>
+                            <option value="Normal">✅ Normal</option>
+                            <option value="Rendah">⚠️ Stok Rendah</option>
+                        </select>
+                    </div>
+
+                    <!-- View Mode Toggle -->
+                    <div class="flex justify-between items-center mb-4" id="viewModeToggle">
+                        <div class="flex items-center space-x-4">
+                            <span class="text-sm font-medium text-gray-700">Mode Tampilan:</span>
+                            <div class="flex bg-gray-100 rounded-lg p-1">
+                                <button id="editModeBtn" onclick="toggleViewMode('edit')" class="px-3 py-1 text-sm font-medium rounded-md bg-blue-600 text-white transition-colors">
+                                    ✏️ Edit Mode
+                                </button>
+                                <button id="viewModeBtn" onclick="toggleViewMode('view')" class="px-3 py-1 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800 transition-colors">
+                                    👁️ View Only
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Total: <span id="itemCount" class="font-semibold">0</span> barang
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kode</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Klasifikasi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pergerakan</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stok</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min. Stok</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th id="actionColumn" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Items will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requests Section -->
+            <div id="requests" class="section hidden">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800">Permintaan Barang</h3>
+                        <button id="createRequestBtn" onclick="showRequestModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            + Buat Permintaan Baru
+                        </button>
+                    </div>
+
+                    <!-- Request Status Filter -->
+                    <div class="mb-6">
+                        <select id="requestStatusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterRequests()">
+                            <option value="">Semua Status</option>
+                            <option value="Menunggu Staff">Menunggu Staff</option>
+                            <option value="Menunggu Manager">Menunggu Manager</option>
+                            <option value="Disetujui">Disetujui</option>
+                            <option value="Ditolak">Ditolak</option>
+                        </select>
+                    </div>
+
+                    <!-- Requests Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Peminta</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Divisi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barang</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requestsTableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Requests will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Section -->
+            <div id="transactions" class="section hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6" id="transactionForms">
+                    <!-- Transaction forms will be populated based on user role -->
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Transaksi Terbaru</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kode</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Divisi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionsTableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Transactions will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="reports" class="section hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Report Generator -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Generate Laporan</h3>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                                    <select id="reportMonth" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="1">Januari</option>
+                                        <option value="2">Februari</option>
+                                        <option value="3">Maret</option>
+                                        <option value="4">April</option>
+                                        <option value="5">Mei</option>
+                                        <option value="6">Juni</option>
+                                        <option value="7">Juli</option>
+                                        <option value="8">Agustus</option>
+                                        <option value="9">September</option>
+                                        <option value="10">Oktober</option>
+                                        <option value="11">November</option>
+                                        <option value="12">Desember</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                                    <select id="reportYear" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="2030">2030</option>
+                                        <option value="2029">2029</option>
+                                        <option value="2028">2028</option>
+                                        <option value="2027">2027</option>
+                                        <option value="2026">2026</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2024">2024</option>
+                                        <option value="2023">2023</option>
+                                        <option value="2022">2022</option>
+                                        <option value="2021">2021</option>
+                                        <option value="2020">2020</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="generateMonthlyReport()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                Generate Laporan Bulanan
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Database Actions -->
+                    <div class="bg-white rounded-xl shadow-lg p-6" id="databaseActions">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Aksi Database</h3>
+                        <div class="space-y-3">
+                            <button onclick="generatePDFReport()" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                📄 Generate Laporan PDF
+                            </button>
+                            <button onclick="backupDatabase()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                💾 Backup Database
+                            </button>
+                            <button onclick="importDatabase()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                📥 Import Database
+                            </button>
+                            <button onclick="resetDatabase()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                🔄 Reset Database
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Results -->
+                <div id="reportResults" class="bg-white rounded-xl shadow-lg p-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Hasil Laporan</h3>
+                    <div id="reportContent">
+                        <!-- Report content will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div id="addItemModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Tambah Barang Baru</h3>
+            <form id="addItemForm" onsubmit="addNewItem(event)">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Kode Barang</label>
+                            <input type="text" id="itemCode" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
+                            <select id="itemType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">Pilih Tipe</option>
+                                <option value="Capex">💰 Capex (Aset)</option>
+                                <option value="Opex">🔄 Opex (Operasional)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Klasifikasi</label>
+                            <select id="itemClassification" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">Pilih Klasifikasi</option>
+                                <option value="Asset">🏢 Asset</option>
+                                <option value="Consumable">📦 Consumable</option>
+                                <option value="Non-Consumable">🔧 Non-Consumable</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Pergerakan</label>
+                            <select id="itemMovement" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">Pilih Pergerakan</option>
+                                <option value="Fast Moving">🚀 Fast Moving</option>
+                                <option value="Normal Moving">📊 Normal Moving</option>
+                                <option value="Slow Moving">🐌 Slow Moving</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                        <textarea id="itemDescription" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="2" placeholder="Deskripsi singkat barang..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Barang</label>
+                        <input type="text" id="itemName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                        <select id="itemCategory" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Pilih Kategori</option>
+                            <option value="Elektronik">Elektronik</option>
+                            <option value="Furniture">Furniture</option>
+                            <option value="Alat Tulis">Alat Tulis</option>
+                            <option value="Cleaning">Cleaning</option>
+                            <option value="Security">Security</option>
+                            <option value="Engineering">Engineering</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Stok Awal</label>
+                            <input type="number" id="itemStock" required min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Min. Stok</label>
+                            <input type="number" id="itemMinStock" required min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeAddItemModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">
+                        Batal
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Request Modal -->
+    <div id="requestModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Buat Permintaan Baru</h3>
+            <form id="requestForm" onsubmit="addNewRequest(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Peminta</label>
+                        <input type="text" id="requesterName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Divisi</label>
+                        <select id="requesterDivision" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Pilih Divisi</option>
+                            <option value="IT">IT</option>
+                            <option value="HR">HR</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Security">Security</option>
+                            <option value="Engineering">Engineering</option>
+                            <option value="Housekeeping">Housekeeping</option>
+                            <option value="Back Office">Back Office</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Barang</label>
+                        <select id="requestedItem" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Pilih Barang</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                        <input type="number" id="requestedQuantity" required min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Alasan</label>
+                        <textarea id="requestReason" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeRequestModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">
+                        Batal
+                    </button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                        Kirim Permintaan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // User roles and permissions
+        const userRoles = {
+            'ga_warehouse': {
+                name: 'Warehouse Staff',
+                displayName: 'Staff Gudang',
+                password: 'ga_warehouse_epa001',
+                permissions: {
+                    viewInventory: true,
+                    editInventory: true,
+                    viewTransactions: true,
+                    createTransactions: true,
+                    viewRequests: true,
+                    approveStaffRequests: true,
+                    viewReports: true,
+                    databaseActions: true
+                },
+                icon: '👤',
+                initials: 'WS'
+            },
+            'building_manager': {
+                name: 'Building Manager',
+                displayName: 'Manager Gedung',
+                password: 'manager_epa001',
+                permissions: {
+                    viewInventory: true,
+                    editInventory: false,
+                    viewTransactions: true,
+                    createTransactions: false,
+                    viewRequests: true,
+                    approveManagerRequests: true,
+                    viewReports: true,
+                    databaseActions: false
+                },
+                icon: '🏢',
+                initials: 'BM'
+            },
+            'security_user': {
+                name: 'Security Division',
+                displayName: 'Divisi Security',
+                password: 'security_epa001',
+                permissions: {
+                    viewInventory: true,
+                    editInventory: false,
+                    viewTransactions: false,
+                    createTransactions: false,
+                    viewRequests: true,
+                    createRequests: true,
+                    viewReports: false,
+                    databaseActions: false
+                },
+                icon: '🛡️',
+                initials: 'SC',
+                division: 'Security'
+            },
+            'engineering_user': {
+                name: 'Engineering Division',
+                displayName: 'Divisi Engineering',
+                password: 'engineering_epa001',
+                permissions: {
+                    viewInventory: true,
+                    editInventory: false,
+                    viewTransactions: false,
+                    createTransactions: false,
+                    viewRequests: true,
+                    createRequests: true,
+                    viewReports: false,
+                    databaseActions: false
+                },
+                icon: '🔧',
+                initials: 'EN',
+                division: 'Engineering'
+            },
+            'housekeeping_user': {
+                name: 'Housekeeping Division',
+                displayName: 'Divisi Housekeeping',
+                password: 'housekeeping_epa001',
+                permissions: {
+                    viewInventory: true,
+                    editInventory: false,
+                    viewTransactions: false,
+                    createTransactions: false,
+                    viewRequests: true,
+                    createRequests: true,
+                    viewReports: false,
+                    databaseActions: false
+                },
+                icon: '🧹',
+                initials: 'HK',
+                division: 'Housekeeping'
+            },
+            'backoffice_user': {
+                name: 'Back Office Division',
+                displayName: 'Divisi Back Office',
+                password: 'backoffice_epa001',
+                permissions: {
+                    viewInventory: true,
+                    editInventory: false,
+                    viewTransactions: false,
+                    createTransactions: false,
+                    viewRequests: true,
+                    createRequests: true,
+                    viewReports: false,
+                    databaseActions: false
+                },
+                icon: '💼',
+                initials: 'BO',
+                division: 'Back Office'
+            }
+        };
+
+        let currentUser = null;
+        let isViewOnlyMode = false;
+
+        // Generate request number with format: MR-DIV-001-M-YYYY
+        function generateRequestNumber(division) {
+            const now = new Date();
+            const currentMonth = now.getMonth() + 1;
+            const currentYear = now.getFullYear();
+            
+            // Reset counter if month/year changed
+            if (requestCounters.currentMonth !== currentMonth || requestCounters.currentYear !== currentYear) {
+                requestCounters.currentMonth = currentMonth;
+                requestCounters.currentYear = currentYear;
+                // Reset all division counters
+                Object.keys(requestCounters.counters).forEach(div => {
+                    requestCounters.counters[div] = 1;
+                });
+            }
+            
+            const divisionCode = divisionCodes[division] || 'UNK';
+            const counter = requestCounters.counters[division] || 1;
+            const counterStr = String(counter).padStart(3, '0');
+            
+            const requestNumber = `MR-${divisionCode}-${counterStr}-${currentMonth}-${currentYear}`;
+            
+            // Increment counter for next request
+            requestCounters.counters[division] = counter + 1;
+            
+            return requestNumber;
+        }
+
+        // Sample data with enhanced classification
+        let items = [];
+
+        let requests = [];
+
+        // Request counter for auto-numbering
+        let requestCounters = {
+            currentMonth: new Date().getMonth() + 1,
+            currentYear: new Date().getFullYear(),
+            counters: {
+                'IT': 1,
+                'Security': 3,
+                'Engineering': 4,
+                'Housekeeping': 5,
+                'HR': 1,
+                'Finance': 1,
+                'Operations': 1,
+                'Marketing': 1,
+                'Back Office': 1
+            }
+        };
+
+        // Division code mapping
+        const divisionCodes = {
+            'IT': 'IT',
+            'Security': 'SCR',
+            'Engineering': 'ENG',
+            'Housekeeping': 'HK',
+            'HR': 'HR',
+            'Finance': 'FIN',
+            'Operations': 'OPS',
+            'Marketing': 'MKT',
+            'Back Office': 'BO'
+        };
+
+        let transactions = [];
+
+        // Login functions
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (userRoles[username] && userRoles[username].password === password) {
+                currentUser = {
+                    username: username,
+                    ...userRoles[username]
+                };
+                
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                
+                initializeUserInterface();
+                updateDashboardStats();
+                loadRecentActivities();
+                updateNotificationBadge();
+            } else {
+                alert('Username atau password salah!');
+            }
+        }
+
+        function logout() {
+            if (confirm('Apakah Anda yakin ingin keluar?')) {
+                currentUser = null;
+                isViewOnlyMode = false;
+                
+                // Reset to login screen
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+                document.getElementById('loginForm').reset();
+                
+                // Reset all sections to hidden
+                document.querySelectorAll('.section').forEach(section => {
+                    section.classList.add('hidden');
+                });
+                
+                // Show dashboard by default when logging back in
+                document.getElementById('dashboard').classList.remove('hidden');
+                
+                // Clear any modals
+                document.getElementById('addItemModal').classList.add('hidden');
+                document.getElementById('requestModal').classList.add('hidden');
+                
+                alert('Anda telah berhasil keluar dari sistem.');
+            }
+        }
+
+        // Toggle view mode function
+        function toggleViewMode(mode) {
+            isViewOnlyMode = (mode === 'view');
+            
+            const editBtn = document.getElementById('editModeBtn');
+            const viewBtn = document.getElementById('viewModeBtn');
+            const addBtn = document.getElementById('addItemBtn');
+            const actionColumn = document.getElementById('actionColumn');
+            
+            if (isViewOnlyMode) {
+                editBtn.classList.remove('bg-blue-600', 'text-white');
+                editBtn.classList.add('text-gray-600', 'hover:text-gray-800');
+                viewBtn.classList.remove('text-gray-600', 'hover:text-gray-800');
+                viewBtn.classList.add('bg-blue-600', 'text-white');
+                
+                if (addBtn) addBtn.classList.add('hidden');
+                if (actionColumn) actionColumn.classList.add('hidden');
+            } else {
+                viewBtn.classList.remove('bg-blue-600', 'text-white');
+                viewBtn.classList.add('text-gray-600', 'hover:text-gray-800');
+                editBtn.classList.remove('text-gray-600', 'hover:text-gray-800');
+                editBtn.classList.add('bg-blue-600', 'text-white');
+                
+                if (currentUser.permissions.editInventory && addBtn) addBtn.classList.remove('hidden');
+                if (currentUser.permissions.editInventory && actionColumn) actionColumn.classList.remove('hidden');
+            }
+            
+            loadItems(); // Refresh the table
+        }
+
+        // Initialize user interface based on role
+        function initializeUserInterface() {
+            // Update user info
+            document.getElementById('currentUserName').textContent = currentUser.displayName;
+            document.getElementById('currentUserRole').textContent = currentUser.name;
+            document.getElementById('userInitials').textContent = currentUser.initials;
+            
+            // Setup navigation
+            setupNavigation();
+            
+            // Setup quick actions
+            setupQuickActions();
+            
+            // Auto-fill user info for division users
+            if (currentUser.division) {
+                setTimeout(() => {
+                    const requesterName = document.getElementById('requesterName');
+                    const requesterDivision = document.getElementById('requesterDivision');
+                    if (requesterName && requesterDivision) {
+                        requesterName.value = currentUser.displayName;
+                        requesterDivision.value = currentUser.division;
+                        requesterName.readOnly = true;
+                        requesterDivision.disabled = true;
+                    }
+                }, 100);
+            }
+        }
+
+        function setupNavigation() {
+            const nav = document.getElementById('navigationMenu');
+            nav.innerHTML = '';
+            
+            // Dashboard - always visible
+            nav.innerHTML += `
+                <button onclick="showSection('dashboard')" class="nav-btn py-4 px-3 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap">
+                    📊 Dashboard
+                </button>
+            `;
+            
+            // Inventory
+            if (currentUser.permissions.viewInventory) {
+                nav.innerHTML += `
+                    <button onclick="showSection('inventory')" class="nav-btn py-4 px-3 border-b-2 border-transparent text-gray-600 hover:text-blue-600 font-medium whitespace-nowrap">
+                        📦 Kelola Inventory
+                    </button>
+                `;
+            }
+            
+            // Requests
+            if (currentUser.permissions.viewRequests) {
+                nav.innerHTML += `
+                    <button onclick="showSection('requests')" class="nav-btn py-4 px-3 border-b-2 border-transparent text-gray-600 hover:text-blue-600 font-medium whitespace-nowrap">
+                        📋 Permintaan Barang
+                    </button>
+                `;
+            }
+            
+            // Transactions
+            if (currentUser.permissions.viewTransactions) {
+                nav.innerHTML += `
+                    <button onclick="showSection('transactions')" class="nav-btn py-4 px-3 border-b-2 border-transparent text-gray-600 hover:text-blue-600 font-medium whitespace-nowrap">
+                        🔄 Transaksi
+                    </button>
+                `;
+            }
+            
+            // Reports
+            if (currentUser.permissions.viewReports) {
+                nav.innerHTML += `
+                    <button onclick="showSection('reports')" class="nav-btn py-4 px-3 border-b-2 border-transparent text-gray-600 hover:text-blue-600 font-medium whitespace-nowrap">
+                        📈 Laporan
+                    </button>
+                `;
+            }
+        }
+
+        function setupQuickActions() {
+            const quickActions = document.getElementById('quickActions');
+            quickActions.innerHTML = '';
+            
+            if (currentUser.permissions.viewInventory) {
+                quickActions.innerHTML += `
+                    <button onclick="showSection('inventory')" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow text-left group">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-blue-100 p-3 rounded-lg group-hover:bg-blue-200 transition-colors">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Kelola Inventory</h3>
+                                <p class="text-sm text-gray-600">${currentUser.permissions.editInventory ? 'Lihat & kelola stok barang' : 'Lihat stok barang'}</p>
+                            </div>
+                        </div>
+                    </button>
+                `;
+            }
+            
+            if (currentUser.permissions.viewRequests) {
+                quickActions.innerHTML += `
+                    <button onclick="showSection('requests')" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow text-left group">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-purple-100 p-3 rounded-lg group-hover:bg-purple-200 transition-colors">
+                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Permintaan Barang</h3>
+                                <p class="text-sm text-gray-600">Sistem otorisasi 3 tingkat</p>
+                            </div>
+                        </div>
+                    </button>
+                `;
+            }
+            
+            if (currentUser.permissions.viewTransactions) {
+                quickActions.innerHTML += `
+                    <button onclick="showSection('transactions')" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow text-left group">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-green-100 p-3 rounded-lg group-hover:bg-green-200 transition-colors">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Transaksi</h3>
+                                <p class="text-sm text-gray-600">Barang masuk & keluar</p>
+                            </div>
+                        </div>
+                    </button>
+                `;
+            }
+            
+            if (currentUser.permissions.viewReports) {
+                quickActions.innerHTML += `
+                    <button onclick="showSection('reports')" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow text-left group">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-orange-100 p-3 rounded-lg group-hover:bg-orange-200 transition-colors">
+                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Laporan</h3>
+                                <p class="text-sm text-gray-600">Analisis & laporan gudang</p>
+                            </div>
+                        </div>
+                    </button>
+                `;
+            }
+        }
+
+        // Notification system
+        function updateNotificationBadge() {
+            const badge = document.getElementById('notificationBadge');
+            const count = document.getElementById('notificationCount');
+            
+            if (currentUser.username === 'building_manager') {
+                const pendingRequests = requests.filter(r => r.status === 'Menunggu Manager').length;
+                
+                if (pendingRequests > 0) {
+                    badge.classList.remove('hidden');
+                    count.textContent = pendingRequests;
+                } else {
+                    badge.classList.add('hidden');
+                }
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // Navigation functions
+        function showSection(sectionName) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            document.getElementById(sectionName).classList.remove('hidden');
+            document.getElementById(sectionName).classList.add('fade-in');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-600');
+            });
+            
+            event.target.classList.remove('border-transparent', 'text-gray-600');
+            event.target.classList.add('border-blue-600', 'text-blue-600');
+            
+            if (sectionName === 'inventory') {
+                loadItems();
+            } else if (sectionName === 'requests') {
+                loadRequests();
+                populateRequestItems();
+            } else if (sectionName === 'transactions') {
+                loadTransactions();
+                setupTransactionForms();
+                populateTransactionItems();
+            } else if (sectionName === 'dashboard') {
+                loadRecentActivities();
+            } else if (sectionName === 'reports') {
+                setupReportsSection();
+            }
+        }
+
+        // Dashboard functions
+        function loadRecentActivities() {
+            const container = document.getElementById('recentActivities');
+            const recentTransactions = transactions.slice(0, 5);
+            
+            container.innerHTML = '';
+            recentTransactions.forEach(transaction => {
+                const item = items.find(i => i.code === transaction.code);
+                const itemName = item ? item.name : 'Unknown Item';
+                
+                const activityDiv = document.createElement('div');
+                activityDiv.className = 'flex items-center space-x-4 p-3 bg-gray-50 rounded-lg';
+                
+                const iconClass = transaction.type === 'masuk' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+                const typeText = transaction.type === 'masuk' ? 'Barang Masuk' : 'Barang Keluar';
+                
+                activityDiv.innerHTML = `
+                    <div class="${iconClass} p-2 rounded-full">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${transaction.type === 'masuk' ? 'M7 16l-4-4m0 0l4-4m-4 4h18' : 'M17 8l4 4m0 0l-4 4m4-4H3'}"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-900">${typeText}: ${itemName}</p>
+                        <p class="text-xs text-gray-500">Jumlah: ${transaction.quantity} • ${transaction.time} • ${transaction.date}</p>
+                    </div>
+                `;
+                
+                container.appendChild(activityDiv);
+            });
+        }
+
+        function updateDashboardStats() {
+            const totalItems = items.length;
+            const lowStockCount = items.filter(item => item.stock <= item.minStock).length;
+            const todayIncoming = transactions.filter(t => t.type === 'masuk' && t.date === new Date().toISOString().split('T')[0]).length;
+            const todayOutgoing = transactions.filter(t => t.type === 'keluar' && t.date === new Date().toISOString().split('T')[0]).length;
+            
+            document.getElementById('totalItems').textContent = totalItems.toLocaleString('id-ID');
+            document.getElementById('lowStock').textContent = lowStockCount;
+            document.getElementById('todayIncoming').textContent = todayIncoming;
+            document.getElementById('todayOutgoing').textContent = todayOutgoing;
+        }
+
+        // Item management functions
+        function loadItems() {
+            const tbody = document.getElementById('itemsTableBody');
+            const addBtn = document.getElementById('addItemBtn');
+            const actionColumn = document.getElementById('actionColumn');
+            const itemCount = document.getElementById('itemCount');
+            const viewModeToggle = document.getElementById('viewModeToggle');
+            
+            // Show/hide view mode toggle based on permissions
+            if (currentUser.permissions.editInventory) {
+                viewModeToggle.classList.remove('hidden');
+            } else {
+                viewModeToggle.classList.add('hidden');
+            }
+            
+            // Show/hide add button and action column based on permissions and view mode
+            if (currentUser.permissions.editInventory && !isViewOnlyMode) {
+                addBtn.classList.remove('hidden');
+                actionColumn.classList.remove('hidden');
+            } else {
+                addBtn.classList.add('hidden');
+                actionColumn.classList.add('hidden');
+            }
+            
+            tbody.innerHTML = '';
+            
+            items.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const statusClass = item.status === 'Rendah' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
+                
+                // Type badges
+                const typeIcon = item.type === 'Capex' ? '💰' : '🔄';
+                const typeClass = item.type === 'Capex' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800';
+                
+                // Classification badges
+                let classIcon = '📦';
+                let classClass = 'bg-gray-100 text-gray-800';
+                if (item.classification === 'Asset') {
+                    classIcon = '🏢';
+                    classClass = 'bg-purple-100 text-purple-800';
+                } else if (item.classification === 'Non-Consumable') {
+                    classIcon = '🔧';
+                    classClass = 'bg-orange-100 text-orange-800';
+                }
+                
+                // Movement badges
+                let movementIcon = '📊';
+                let movementClass = 'bg-blue-100 text-blue-800';
+                if (item.movement === 'Fast Moving') {
+                    movementIcon = '🚀';
+                    movementClass = 'bg-green-100 text-green-800';
+                } else if (item.movement === 'Slow Moving') {
+                    movementIcon = '🐌';
+                    movementClass = 'bg-red-100 text-red-800';
+                }
+                
+                let actionCell = '';
+                if (currentUser.permissions.editInventory && !isViewOnlyMode) {
+                    actionCell = `
+                        <td class="px-4 py-3 text-sm">
+                            <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-800 mr-3" title="Edit barang">✏️</button>
+                            <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-800" title="Hapus barang">🗑️</button>
+                        </td>
+                    `;
+                }
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${item.code}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900" title="${item.description || ''}">${item.name}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${item.category}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${typeClass}">
+                            ${typeIcon} ${item.type}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${classClass}">
+                            ${classIcon} ${item.classification}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${movementClass}">
+                            ${movementIcon} ${item.movement}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-900 font-medium">${item.stock}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${item.minStock}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">
+                            ${item.status === 'Rendah' ? '⚠️' : '✅'} ${item.status}
+                        </span>
+                    </td>
+                    ${actionCell}
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            // Update item count
+            if (itemCount) {
+                itemCount.textContent = items.length;
+            }
+        }
+
+        function filterItems() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            const classificationFilter = document.getElementById('classificationFilter').value;
+            const movementFilter = document.getElementById('movementFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            const filteredItems = items.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(searchTerm) || 
+                                    item.code.toLowerCase().includes(searchTerm) ||
+                                    (item.description && item.description.toLowerCase().includes(searchTerm));
+                const matchesCategory = !categoryFilter || item.category === categoryFilter;
+                const matchesType = !typeFilter || item.type === typeFilter;
+                const matchesClassification = !classificationFilter || item.classification === classificationFilter;
+                const matchesMovement = !movementFilter || item.movement === movementFilter;
+                const matchesStatus = !statusFilter || item.status === statusFilter;
+                
+                return matchesSearch && matchesCategory && matchesType && matchesClassification && matchesMovement && matchesStatus;
+            });
+            
+            const tbody = document.getElementById('itemsTableBody');
+            const itemCount = document.getElementById('itemCount');
+            tbody.innerHTML = '';
+            
+            filteredItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const statusClass = item.status === 'Rendah' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
+                
+                // Type badges
+                const typeIcon = item.type === 'Capex' ? '💰' : '🔄';
+                const typeClass = item.type === 'Capex' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800';
+                
+                // Classification badges
+                let classIcon = '📦';
+                let classClass = 'bg-gray-100 text-gray-800';
+                if (item.classification === 'Asset') {
+                    classIcon = '🏢';
+                    classClass = 'bg-purple-100 text-purple-800';
+                } else if (item.classification === 'Non-Consumable') {
+                    classIcon = '🔧';
+                    classClass = 'bg-orange-100 text-orange-800';
+                }
+                
+                // Movement badges
+                let movementIcon = '📊';
+                let movementClass = 'bg-blue-100 text-blue-800';
+                if (item.movement === 'Fast Moving') {
+                    movementIcon = '🚀';
+                    movementClass = 'bg-green-100 text-green-800';
+                } else if (item.movement === 'Slow Moving') {
+                    movementIcon = '🐌';
+                    movementClass = 'bg-red-100 text-red-800';
+                }
+                
+                let actionCell = '';
+                if (currentUser.permissions.editInventory && !isViewOnlyMode) {
+                    actionCell = `
+                        <td class="px-4 py-3 text-sm">
+                            <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-800 mr-3" title="Edit barang">✏️</button>
+                            <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-800" title="Hapus barang">🗑️</button>
+                        </td>
+                    `;
+                }
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${item.code}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900" title="${item.description || ''}">${item.name}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${item.category}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${typeClass}">
+                            ${typeIcon} ${item.type}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${classClass}">
+                            ${classIcon} ${item.classification}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${movementClass}">
+                            ${movementIcon} ${item.movement}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-900 font-medium">${item.stock}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${item.minStock}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">
+                            ${item.status === 'Rendah' ? '⚠️' : '✅'} ${item.status}
+                        </span>
+                    </td>
+                    ${actionCell}
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            // Update filtered item count
+            if (itemCount) {
+                itemCount.textContent = filteredItems.length;
+            }
+        }
+
+        // Modal functions for items
+        function showAddItemModal() {
+            if (!currentUser.permissions.editInventory) {
+                alert('Anda tidak memiliki izin untuk menambah barang.');
+                return;
+            }
+            document.getElementById('addItemModal').classList.remove('hidden');
+            document.getElementById('addItemModal').classList.add('flex');
+        }
+
+        function closeAddItemModal() {
+            document.getElementById('addItemModal').classList.add('hidden');
+            document.getElementById('addItemModal').classList.remove('flex');
+            document.getElementById('addItemForm').reset();
+        }
+
+        function addNewItem(event) {
+            event.preventDefault();
+            
+            if (!currentUser.permissions.editInventory) {
+                alert('Anda tidak memiliki izin untuk menambah barang.');
+                return;
+            }
+            
+            const stock = parseInt(document.getElementById('itemStock').value);
+            const minStock = parseInt(document.getElementById('itemMinStock').value);
+            
+            const newItem = {
+                id: items.length + 1,
+                code: document.getElementById('itemCode').value,
+                name: document.getElementById('itemName').value,
+                category: document.getElementById('itemCategory').value,
+                type: document.getElementById('itemType').value,
+                classification: document.getElementById('itemClassification').value,
+                movement: document.getElementById('itemMovement').value,
+                stock: stock,
+                minStock: minStock,
+                status: stock <= minStock ? 'Rendah' : 'Normal',
+                description: document.getElementById('itemDescription').value
+            };
+            
+            items.push(newItem);
+            loadItems();
+            closeAddItemModal();
+            updateDashboardStats();
+            
+            alert('Barang berhasil ditambahkan!');
+        }
+
+        function editItem(id) {
+            if (!currentUser.permissions.editInventory) {
+                alert('Anda tidak memiliki izin untuk mengedit barang.');
+                return;
+            }
+            
+            const item = items.find(i => i.id === id);
+            if (item) {
+                document.getElementById('itemCode').value = item.code;
+                document.getElementById('itemName').value = item.name;
+                document.getElementById('itemCategory').value = item.category;
+                document.getElementById('itemType').value = item.type;
+                document.getElementById('itemClassification').value = item.classification;
+                document.getElementById('itemMovement').value = item.movement;
+                document.getElementById('itemStock').value = item.stock;
+                document.getElementById('itemMinStock').value = item.minStock;
+                document.getElementById('itemDescription').value = item.description || '';
+                
+                showAddItemModal();
+                
+                document.getElementById('addItemForm').onsubmit = function(event) {
+                    event.preventDefault();
+                    
+                    const stock = parseInt(document.getElementById('itemStock').value);
+                    const minStock = parseInt(document.getElementById('itemMinStock').value);
+                    
+                    item.code = document.getElementById('itemCode').value;
+                    item.name = document.getElementById('itemName').value;
+                    item.category = document.getElementById('itemCategory').value;
+                    item.type = document.getElementById('itemType').value;
+                    item.classification = document.getElementById('itemClassification').value;
+                    item.movement = document.getElementById('itemMovement').value;
+                    item.stock = stock;
+                    item.minStock = minStock;
+                    item.status = stock <= minStock ? 'Rendah' : 'Normal';
+                    item.description = document.getElementById('itemDescription').value;
+                    
+                    loadItems();
+                    closeAddItemModal();
+                    updateDashboardStats();
+                    
+                    document.getElementById('addItemForm').onsubmit = addNewItem;
+                    
+                    alert('Barang berhasil diperbarui!');
+                };
+            }
+        }
+
+        function deleteItem(id) {
+            if (!currentUser.permissions.editInventory) {
+                alert('Anda tidak memiliki izin untuk menghapus barang.');
+                return;
+            }
+            
+            if (confirm('Apakah Anda yakin ingin menghapus barang ini?')) {
+                items = items.filter(item => item.id !== id);
+                loadItems();
+                updateDashboardStats();
+                alert('Barang berhasil dihapus!');
+            }
+        }
+
+        // Request management functions
+        function loadRequests() {
+            const tbody = document.getElementById('requestsTableBody');
+            const createBtn = document.getElementById('createRequestBtn');
+            
+            // Show/hide create button based on permissions
+            if (currentUser.permissions.createRequests) {
+                createBtn.classList.remove('hidden');
+            } else {
+                createBtn.classList.add('hidden');
+            }
+            
+            tbody.innerHTML = '';
+            
+            requests.forEach(request => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                let statusClass = '';
+                switch(request.status) {
+                    case 'Menunggu Staff':
+                        statusClass = 'status-waiting-staff';
+                        break;
+                    case 'Menunggu Manager':
+                        statusClass = 'status-waiting-manager';
+                        break;
+                    case 'Disetujui':
+                        statusClass = 'status-approved';
+                        break;
+                    case 'Ditolak':
+                        statusClass = 'status-rejected';
+                        break;
+                    default:
+                        statusClass = 'status-pending';
+                }
+                
+                let actionCell = '<span class="text-gray-400">-</span>';
+                
+                if (request.status === 'Menunggu Staff' && currentUser.permissions.approveStaffRequests) {
+                    actionCell = `
+                        <button onclick="approveRequest('${request.id}', 'staff')" class="text-green-600 hover:text-green-800 mr-2">Setujui</button>
+                        <button onclick="rejectRequest('${request.id}')" class="text-red-600 hover:text-red-800">Tolak</button>
+                    `;
+                } else if (request.status === 'Menunggu Manager' && currentUser.permissions.approveManagerRequests) {
+                    actionCell = `
+                        <button onclick="approveRequest('${request.id}', 'manager')" class="text-green-600 hover:text-green-800 mr-2">Setujui</button>
+                        <button onclick="rejectRequest('${request.id}')" class="text-red-600 hover:text-red-800">Tolak</button>
+                    `;
+                }
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${request.id}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${new Date(request.date).toLocaleDateString('id-ID')}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${request.requester}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${request.division}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${request.item}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${request.quantity}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">
+                            ${request.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        ${actionCell}
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterRequests() {
+            const statusFilter = document.getElementById('requestStatusFilter').value;
+            
+            const filteredRequests = requests.filter(request => {
+                return !statusFilter || request.status === statusFilter;
+            });
+            
+            const tbody = document.getElementById('requestsTableBody');
+            tbody.innerHTML = '';
+            
+            filteredRequests.forEach(request => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                let statusClass = '';
+                switch(request.status) {
+                    case 'Menunggu Staff':
+                        statusClass = 'status-waiting-staff';
+                        break;
+                    case 'Menunggu Manager':
+                        statusClass = 'status-waiting-manager';
+                        break;
+                    case 'Disetujui':
+                        statusClass = 'status-approved';
+                        break;
+                    case 'Ditolak':
+                        statusClass = 'status-rejected';
+                        break;
+                    default:
+                        statusClass = 'status-pending';
+                }
+                
+                let actionCell = '<span class="text-gray-400">-</span>';
+                
+                if (request.status === 'Menunggu Staff' && currentUser.permissions.approveStaffRequests) {
+                    actionCell = `
+                        <button onclick="approveRequest('${request.id}', 'staff')" class="text-green-600 hover:text-green-800 mr-2">Setujui</button>
+                        <button onclick="rejectRequest('${request.id}')" class="text-red-600 hover:text-red-800">Tolak</button>
+                    `;
+                } else if (request.status === 'Menunggu Manager' && currentUser.permissions.approveManagerRequests) {
+                    actionCell = `
+                        <button onclick="approveRequest('${request.id}', 'manager')" class="text-green-600 hover:text-green-800 mr-2">Setujui</button>
+                        <button onclick="rejectRequest('${request.id}')" class="text-red-600 hover:text-red-800">Tolak</button>
+                    `;
+                }
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${request.id}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${new Date(request.date).toLocaleDateString('id-ID')}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${request.requester}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${request.division}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${request.item}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${request.quantity}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">
+                            ${request.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        ${actionCell}
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function showRequestModal() {
+            if (!currentUser.permissions.createRequests) {
+                alert('Anda tidak memiliki izin untuk membuat permintaan.');
+                return;
+            }
+            
+            document.getElementById('requestModal').classList.remove('hidden');
+            document.getElementById('requestModal').classList.add('flex');
+            
+            // Auto-fill for division users
+            if (currentUser.division) {
+                setTimeout(() => {
+                    document.getElementById('requesterName').value = currentUser.displayName;
+                    document.getElementById('requesterDivision').value = currentUser.division;
+                    document.getElementById('requesterName').readOnly = true;
+                    document.getElementById('requesterDivision').disabled = true;
+                }, 100);
+            }
+        }
+
+        function closeRequestModal() {
+            document.getElementById('requestModal').classList.add('hidden');
+            document.getElementById('requestModal').classList.remove('flex');
+            document.getElementById('requestForm').reset();
+            
+            // Reset readonly/disabled states
+            document.getElementById('requesterName').readOnly = false;
+            document.getElementById('requesterDivision').disabled = false;
+        }
+
+        function populateRequestItems() {
+            const select = document.getElementById('requestedItem');
+            select.innerHTML = '<option value="">Pilih Barang</option>';
+            
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.name;
+                option.textContent = `${item.code} - ${item.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        function addNewRequest(event) {
+            event.preventDefault();
+            
+            if (!currentUser.permissions.createRequests) {
+                alert('Anda tidak memiliki izin untuk membuat permintaan.');
+                return;
+            }
+            
+            const division = document.getElementById('requesterDivision').value;
+            const requestNumber = generateRequestNumber(division);
+            
+            const newRequest = {
+                id: requestNumber,
+                date: new Date().toISOString().split('T')[0],
+                requester: document.getElementById('requesterName').value,
+                division: division,
+                item: document.getElementById('requestedItem').value,
+                quantity: parseInt(document.getElementById('requestedQuantity').value),
+                reason: document.getElementById('requestReason').value,
+                status: 'Menunggu Staff'
+            };
+            
+            requests.unshift(newRequest);
+            loadRequests();
+            closeRequestModal();
+            updateNotificationBadge();
+            
+            alert(`Permintaan berhasil dibuat dengan nomor ${requestNumber} dan menunggu persetujuan staff!`);
+        }
+
+        function approveRequest(requestId, level) {
+            const request = requests.find(r => r.id === requestId);
+            if (request) {
+                if (level === 'staff' && currentUser.permissions.approveStaffRequests) {
+                    request.status = 'Menunggu Manager';
+                    alert('Permintaan disetujui staff. Menunggu persetujuan manager.');
+                } else if (level === 'manager' && currentUser.permissions.approveManagerRequests) {
+                    request.status = 'Disetujui';
+                    alert('Permintaan disetujui manager. Barang dapat dikeluarkan.');
+                } else {
+                    alert('Anda tidak memiliki izin untuk menyetujui permintaan ini.');
+                    return;
+                }
+                loadRequests();
+                updateNotificationBadge();
+            }
+        }
+
+        function rejectRequest(requestId) {
+            if (confirm('Apakah Anda yakin ingin menolak permintaan ini?')) {
+                const request = requests.find(r => r.id === requestId);
+                if (request) {
+                    if ((request.status === 'Menunggu Staff' && currentUser.permissions.approveStaffRequests) ||
+                        (request.status === 'Menunggu Manager' && currentUser.permissions.approveManagerRequests)) {
+                        request.status = 'Ditolak';
+                        loadRequests();
+                        updateNotificationBadge();
+                        alert('Permintaan ditolak.');
+                    } else {
+                        alert('Anda tidak memiliki izin untuk menolak permintaan ini.');
+                    }
+                }
+            }
+        }
+
+        // Transaction functions
+        function setupTransactionForms() {
+            const formsContainer = document.getElementById('transactionForms');
+            formsContainer.innerHTML = '';
+            
+            if (!currentUser.permissions.createTransactions) {
+                return;
+            }
+            
+            // Barang Masuk Form
+            formsContainer.innerHTML += `
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <span class="bg-green-100 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"></path>
+                            </svg>
+                        </span>
+                        Barang Masuk
+                    </h3>
+                    <form id="incomingForm" onsubmit="addIncomingTransaction(event)">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kode Barang</label>
+                                <select id="incomingItemCode" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Pilih Barang</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                                <input type="number" id="incomingQuantity" required min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+                                <input type="text" id="incomingSupplier" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
+                                <textarea id="incomingNote" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="2"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                Simpan Barang Masuk
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            // Barang Keluar Form
+            formsContainer.innerHTML += `
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <span class="bg-red-100 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </span>
+                        Barang Keluar
+                    </h3>
+                    <form id="outgoingForm" onsubmit="addOutgoingTransaction(event)">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kode Barang</label>
+                                <select id="outgoingItemCode" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Pilih Barang</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                                <input type="number" id="outgoingQuantity" required min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Divisi</label>
+                                <select id="outgoingDivision" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Pilih Divisi</option>
+                                    <option value="IT">IT</option>
+                                    <option value="HR">HR</option>
+                                    <option value="Finance">Finance</option>
+                                    <option value="Operations">Operations</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Security">Security</option>
+                                    <option value="Engineering">Engineering</option>
+                                    <option value="Housekeeping">Housekeeping</option>
+                                    <option value="Back Office">Back Office</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Peminta</label>
+                                <input type="text" id="outgoingRequester" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tujuan</label>
+                                <input type="text" id="outgoingDestination" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                Simpan Barang Keluar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        }
+
+        function loadTransactions() {
+            const tbody = document.getElementById('transactionsTableBody');
+            tbody.innerHTML = '';
+            
+            transactions.slice(0, 10).forEach(transaction => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const typeClass = transaction.type === 'masuk' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                const typeText = transaction.type === 'masuk' ? 'Masuk' : 'Keluar';
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm text-gray-900">${new Date(transaction.date).toLocaleDateString('id-ID')}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${transaction.time}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${typeClass}">
+                            ${typeText}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${transaction.code}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${transaction.quantity}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${transaction.division}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${transaction.note}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function populateTransactionItems() {
+            if (!currentUser.permissions.createTransactions) {
+                return;
+            }
+            
+            const incomingSelect = document.getElementById('incomingItemCode');
+            const outgoingSelect = document.getElementById('outgoingItemCode');
+            
+            if (incomingSelect) {
+                incomingSelect.innerHTML = '<option value="">Pilih Barang</option>';
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.code;
+                    option.textContent = `${item.code} - ${item.name}`;
+                    incomingSelect.appendChild(option);
+                });
+            }
+            
+            if (outgoingSelect) {
+                outgoingSelect.innerHTML = '<option value="">Pilih Barang</option>';
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.code;
+                    option.textContent = `${item.code} - ${item.name} (Stok: ${item.stock})`;
+                    outgoingSelect.appendChild(option);
+                });
+            }
+        }
+
+        function addIncomingTransaction(event) {
+            event.preventDefault();
+            
+            if (!currentUser.permissions.createTransactions) {
+                alert('Anda tidak memiliki izin untuk membuat transaksi.');
+                return;
+            }
+            
+            const itemCode = document.getElementById('incomingItemCode').value;
+            const quantity = parseInt(document.getElementById('incomingQuantity').value);
+            const supplier = document.getElementById('incomingSupplier').value;
+            const note = document.getElementById('incomingNote').value;
+            
+            // Update item stock
+            const item = items.find(i => i.code === itemCode);
+            if (item) {
+                item.stock += quantity;
+                item.status = item.stock <= item.minStock ? 'Rendah' : 'Normal';
+            }
+            
+            const newTransaction = {
+                id: 'TRX' + String(transactions.length + 1).padStart(3, '0'),
+                date: new Date().toISOString().split('T')[0],
+                time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                type: 'masuk',
+                code: itemCode,
+                quantity: quantity,
+                division: '-',
+                supplier: supplier,
+                note: note
+            };
+            
+            transactions.unshift(newTransaction);
+            loadTransactions();
+            updateDashboardStats();
+            document.getElementById('incomingForm').reset();
+            
+            alert('Transaksi barang masuk berhasil disimpan!');
+        }
+
+        function addOutgoingTransaction(event) {
+            event.preventDefault();
+            
+            if (!currentUser.permissions.createTransactions) {
+                alert('Anda tidak memiliki izin untuk membuat transaksi.');
+                return;
+            }
+            
+            const itemCode = document.getElementById('outgoingItemCode').value;
+            const quantity = parseInt(document.getElementById('outgoingQuantity').value);
+            const division = document.getElementById('outgoingDivision').value;
+            const requester = document.getElementById('outgoingRequester').value;
+            const destination = document.getElementById('outgoingDestination').value;
+            
+            // Check and update item stock
+            const item = items.find(i => i.code === itemCode);
+            if (item) {
+                if (item.stock >= quantity) {
+                    item.stock -= quantity;
+                    item.status = item.stock <= item.minStock ? 'Rendah' : 'Normal';
+                } else {
+                    alert('Stok tidak mencukupi! Stok tersedia: ' + item.stock);
+                    return;
+                }
+            }
+            
+            const newTransaction = {
+                id: 'TRX' + String(transactions.length + 1).padStart(3, '0'),
+                date: new Date().toISOString().split('T')[0],
+                time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                type: 'keluar',
+                code: itemCode,
+                quantity: quantity,
+                division: division,
+                requester: requester,
+                destination: destination,
+                note: `Untuk ${requester} - ${destination}`
+            };
+            
+            transactions.unshift(newTransaction);
+            loadTransactions();
+            updateDashboardStats();
+            populateTransactionItems(); // Refresh stock info
+            document.getElementById('outgoingForm').reset();
+            
+            alert('Transaksi barang keluar berhasil disimpan!');
+        }
+
+        // Report functions
+        function setupReportsSection() {
+            const databaseActions = document.getElementById('databaseActions');
+            
+            // Always show database actions for all users
+            databaseActions.classList.remove('hidden');
+        }
+
+        function generateMonthlyReport() {
+            const month = document.getElementById('reportMonth').value;
+            const year = document.getElementById('reportYear').value;
+            
+            const monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                              'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            
+            const reportContent = document.getElementById('reportContent');
+            const reportResults = document.getElementById('reportResults');
+            
+            // Filter transactions for the selected month/year
+            const monthlyTransactions = transactions.filter(transaction => {
+                const transactionDate = new Date(transaction.date);
+                return transactionDate.getMonth() + 1 == month && transactionDate.getFullYear() == year;
+            });
+            
+            const incomingTransactions = monthlyTransactions.filter(t => t.type === 'masuk');
+            const outgoingTransactions = monthlyTransactions.filter(t => t.type === 'keluar');
+            
+            // Calculate totals
+            const totalIncoming = incomingTransactions.reduce((sum, t) => sum + t.quantity, 0);
+            const totalOutgoing = outgoingTransactions.reduce((sum, t) => sum + t.quantity, 0);
+            
+            // Find most requested items
+            const itemCounts = {};
+            outgoingTransactions.forEach(t => {
+                itemCounts[t.code] = (itemCounts[t.code] || 0) + t.quantity;
+            });
+            
+            const topItems = Object.entries(itemCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5)
+                .map(([code, count]) => {
+                    const item = items.find(i => i.code === code);
+                    return { name: item ? item.name : code, count };
+                });
+            
+            let html = `
+                <div class="space-y-6">
+                    <div class="text-center">
+                        <h4 class="text-xl font-bold text-gray-800">Laporan Bulanan</h4>
+                        <p class="text-gray-600">${monthNames[month]} ${year}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <p class="text-2xl font-bold text-blue-600">${monthlyTransactions.length}</p>
+                            <p class="text-sm text-blue-800">Total Transaksi</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <p class="text-2xl font-bold text-green-600">${totalIncoming}</p>
+                            <p class="text-sm text-green-800">Barang Masuk</p>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg text-center">
+                            <p class="text-2xl font-bold text-red-600">${totalOutgoing}</p>
+                            <p class="text-sm text-red-800">Barang Keluar</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h5 class="font-semibold text-gray-800 mb-3">Barang Terlaris Bulan Ini</h5>
+                        <div class="space-y-2">
+            `;
+            
+            if (topItems.length === 0) {
+                html += '<p class="text-gray-500">Tidak ada data barang keluar bulan ini.</p>';
+            } else {
+                topItems.forEach((item, index) => {
+                    html += `
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span class="font-medium">${index + 1}. ${item.name}</span>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">${item.count} unit</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h5 class="font-semibold text-gray-800 mb-3">Laporan per Divisi</h5>
+                        <div class="overflow-x-auto">
+                            <table class="w-full table-auto border-collapse border border-gray-300">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="border border-gray-300 px-4 py-2 text-left">Divisi</th>
+                                        <th class="border border-gray-300 px-4 py-2 text-left">Jumlah Transaksi</th>
+                                        <th class="border border-gray-300 px-4 py-2 text-left">Total Barang</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+            
+            const divisionStats = {};
+            outgoingTransactions.forEach(t => {
+                if (t.division !== '-') {
+                    if (!divisionStats[t.division]) {
+                        divisionStats[t.division] = { transactions: 0, items: 0 };
+                    }
+                    divisionStats[t.division].transactions++;
+                    divisionStats[t.division].items += t.quantity;
+                }
+            });
+            
+            Object.entries(divisionStats).forEach(([division, stats]) => {
+                html += `
+                    <tr>
+                        <td class="border border-gray-300 px-4 py-2">${division}</td>
+                        <td class="border border-gray-300 px-4 py-2">${stats.transactions}</td>
+                        <td class="border border-gray-300 px-4 py-2">${stats.items}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            reportContent.innerHTML = html;
+            reportResults.classList.remove('hidden');
+        }
+
+        function generatePDFReport() {
+            alert('Fitur Generate PDF Report akan segera tersedia. Laporan akan diunduh dalam format PDF.');
+        }
+
+        function backupDatabase() {
+            const data = {
+                items: items,
+                requests: requests,
+                transactions: transactions,
+                timestamp: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `warehouse_backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            alert('Database berhasil di-backup dan diunduh!');
+        }
+
+        function importDatabase() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            if (data.items && data.requests && data.transactions) {
+                                items = data.items;
+                                requests = data.requests;
+                                transactions = data.transactions;
+                                
+                                // Refresh all displays
+                                updateDashboardStats();
+                                loadItems();
+                                loadRequests();
+                                loadTransactions();
+                                updateNotificationBadge();
+                                
+                                alert('Database berhasil diimport!');
+                            } else {
+                                alert('Format file tidak valid!');
+                            }
+                        } catch (error) {
+                            alert('Error membaca file: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            
+            input.click();
+        }
+
+        function resetDatabase() {
+            if (confirm('Apakah Anda yakin ingin mereset semua data? Tindakan ini tidak dapat dibatalkan!')) {
+                if (confirm('Konfirmasi sekali lagi: Semua data akan hilang!')) {
+                    items = [];
+                    requests = [];
+                    transactions = [];
+                    
+                    // Refresh all displays
+                    updateDashboardStats();
+                    loadItems();
+                    loadRequests();
+                    loadTransactions();
+                    updateNotificationBadge();
+                    
+                    alert('Database berhasil direset!');
+                }
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set current month and year for reports
+            const now = new Date();
+            document.getElementById('reportMonth').value = now.getMonth() + 1;
+            document.getElementById('reportYear').value = now.getFullYear();
+            
+            // Update notification badge every 30 seconds
+            setInterval(updateNotificationBadge, 30000);
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98476511b66d4fef',t:'MTc1ODc3MDUyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
