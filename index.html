@@ -1356,11 +1356,13 @@
             
             const stock = parseInt(document.getElementById('itemStock').value);
             const minStock = parseInt(document.getElementById('itemMinStock').value);
+            const itemName = document.getElementById('itemName').value;
+            const itemCode = document.getElementById('itemCode').value;
             
             const newItem = {
                 id: items.length + 1,
-                code: document.getElementById('itemCode').value,
-                name: document.getElementById('itemName').value,
+                code: itemCode,
+                name: itemName,
                 category: document.getElementById('itemCategory').value,
                 type: document.getElementById('itemType').value,
                 classification: document.getElementById('itemClassification').value,
@@ -1372,6 +1374,10 @@
             };
             
             items.push(newItem);
+            
+            // Add activity log
+            addActivity('item_added', `Barang baru ditambahkan: ${itemName} (${itemCode}) dengan stok ${stock} unit`);
+            
             loadItems();
             closeAddItemModal();
             updateDashboardStats();
@@ -1404,9 +1410,11 @@
                     
                     const stock = parseInt(document.getElementById('itemStock').value);
                     const minStock = parseInt(document.getElementById('itemMinStock').value);
+                    const oldStock = item.stock;
+                    const itemName = document.getElementById('itemName').value;
                     
                     item.code = document.getElementById('itemCode').value;
-                    item.name = document.getElementById('itemName').value;
+                    item.name = itemName;
                     item.category = document.getElementById('itemCategory').value;
                     item.type = document.getElementById('itemType').value;
                     item.classification = document.getElementById('itemClassification').value;
@@ -1415,6 +1423,13 @@
                     item.minStock = minStock;
                     item.status = stock <= minStock ? 'Rendah' : 'Normal';
                     item.description = document.getElementById('itemDescription').value;
+                    
+                    // Add activity log
+                    let updateMessage = `Barang diperbarui: ${itemName}`;
+                    if (oldStock !== stock) {
+                        updateMessage += ` (stok: ${oldStock} → ${stock})`;
+                    }
+                    addActivity('item_updated', updateMessage);
                     
                     loadItems();
                     closeAddItemModal();
@@ -1631,19 +1646,26 @@
             
             const division = document.getElementById('requesterDivision').value;
             const requestNumber = generateRequestNumber(division);
+            const requesterName = document.getElementById('requesterName').value;
+            const itemName = document.getElementById('requestedItem').value;
+            const quantity = parseInt(document.getElementById('requestedQuantity').value);
             
             const newRequest = {
                 id: requestNumber,
                 date: new Date().toISOString().split('T')[0],
-                requester: document.getElementById('requesterName').value,
+                requester: requesterName,
                 division: division,
-                item: document.getElementById('requestedItem').value,
-                quantity: parseInt(document.getElementById('requestedQuantity').value),
+                item: itemName,
+                quantity: quantity,
                 reason: document.getElementById('requestReason').value,
                 status: 'Menunggu Staff'
             };
             
             requests.unshift(newRequest);
+            
+            // Add activity log
+            addActivity('request_created', `Permintaan baru: ${itemName} (${quantity} unit) dari ${division} - ${requesterName}`);
+            
             loadRequests();
             closeRequestModal();
             updateNotificationBadge();
@@ -1656,9 +1678,11 @@
             if (request) {
                 if (level === 'staff' && currentUser.permissions.approveStaffRequests) {
                     request.status = 'Menunggu Manager';
+                    addActivity('request_approved', `Permintaan ${request.id} disetujui staff: ${request.item} (${request.quantity} unit) dari ${request.division}`);
                     alert('Permintaan disetujui staff. Menunggu persetujuan manager.');
                 } else if (level === 'manager' && currentUser.permissions.approveManagerRequests) {
                     request.status = 'Disetujui';
+                    addActivity('request_approved', `Permintaan ${request.id} disetujui manager: ${request.item} (${request.quantity} unit) dari ${request.division} - SIAP DIKELUARKAN`);
                     alert('Permintaan disetujui manager. Barang dapat dikeluarkan.');
                 } else {
                     alert('Anda tidak memiliki izin untuk menyetujui permintaan ini.');
@@ -1676,6 +1700,10 @@
                     if ((request.status === 'Menunggu Staff' && currentUser.permissions.approveStaffRequests) ||
                         (request.status === 'Menunggu Manager' && currentUser.permissions.approveManagerRequests)) {
                         request.status = 'Ditolak';
+                        
+                        const rejectedBy = request.status === 'Menunggu Staff' ? 'staff' : 'manager';
+                        addActivity('request_rejected', `Permintaan ${request.id} ditolak ${rejectedBy}: ${request.item} (${request.quantity} unit) dari ${request.division}`);
+                        
                         loadRequests();
                         updateNotificationBadge();
                         alert('Permintaan ditolak.');
@@ -1862,7 +1890,9 @@
             
             // Update item stock
             const item = items.find(i => i.code === itemCode);
+            let itemName = 'Unknown Item';
             if (item) {
+                itemName = item.name;
                 item.stock += quantity;
                 item.status = item.stock <= item.minStock ? 'Rendah' : 'Normal';
             }
@@ -1880,6 +1910,10 @@
             };
             
             transactions.unshift(newTransaction);
+            
+            // Add activity log
+            addActivity('transaction_in', `Barang masuk: ${itemName} sebanyak ${quantity} unit dari ${supplier}`);
+            
             loadTransactions();
             updateDashboardStats();
             document.getElementById('incomingForm').reset();
@@ -1903,7 +1937,9 @@
             
             // Check and update item stock
             const item = items.find(i => i.code === itemCode);
+            let itemName = 'Unknown Item';
             if (item) {
+                itemName = item.name;
                 if (item.stock >= quantity) {
                     item.stock -= quantity;
                     item.status = item.stock <= item.minStock ? 'Rendah' : 'Normal';
@@ -1927,6 +1963,10 @@
             };
             
             transactions.unshift(newTransaction);
+            
+            // Add activity log
+            addActivity('transaction_out', `Barang keluar: ${itemName} sebanyak ${quantity} unit untuk ${division} (${requester})`);
+            
             loadTransactions();
             updateDashboardStats();
             populateTransactionItems(); // Refresh stock info
@@ -2153,6 +2193,215 @@
             }
         }
 
+        // Real-time activity tracking system
+        let activityLog = [];
+        let lastActivityCheck = Date.now();
+
+        // Add activity to log
+        function addActivity(type, message, user = null) {
+            const activity = {
+                id: Date.now(),
+                type: type, // 'item_added', 'item_updated', 'transaction', 'request'
+                message: message,
+                user: user || currentUser.displayName,
+                timestamp: new Date().toISOString(),
+                isNew: true
+            };
+            
+            activityLog.unshift(activity);
+            
+            // Keep only last 50 activities
+            if (activityLog.length > 50) {
+                activityLog = activityLog.slice(0, 50);
+            }
+            
+            // Store in localStorage for persistence across users
+            localStorage.setItem('warehouseActivities', JSON.stringify(activityLog));
+            
+            // Show notification to other users
+            showActivityNotification(activity);
+        }
+
+        // Load activities from localStorage
+        function loadActivitiesFromStorage() {
+            const stored = localStorage.getItem('warehouseActivities');
+            if (stored) {
+                activityLog = JSON.parse(stored);
+            }
+        }
+
+        // Show real-time notification
+        function showActivityNotification(activity) {
+            // Don't show notification to the user who created the activity
+            if (activity.user === currentUser.displayName) {
+                return;
+            }
+            
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm transform translate-x-full transition-transform duration-300';
+            notification.innerHTML = `
+                <div class="flex items-start space-x-3">
+                    <div class="bg-white bg-opacity-20 p-1 rounded-full">
+                        ${getActivityIcon(activity.type)}
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-semibold text-sm">Aktivitas Baru!</p>
+                        <p class="text-xs opacity-90">${activity.message}</p>
+                        <p class="text-xs opacity-75 mt-1">oleh ${activity.user}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-white opacity-75 hover:opacity-100">
+                        ✕
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Slide in animation
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.classList.add('translate-x-full');
+                    setTimeout(() => {
+                        if (notification.parentElement) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }
+            }, 5000);
+            
+            // Play notification sound (optional)
+            playNotificationSound();
+        }
+
+        // Get icon for activity type
+        function getActivityIcon(type) {
+            switch(type) {
+                case 'item_added': return '📦';
+                case 'item_updated': return '✏️';
+                case 'transaction_in': return '📥';
+                case 'transaction_out': return '📤';
+                case 'request_created': return '📋';
+                case 'request_approved': return '✅';
+                case 'request_rejected': return '❌';
+                default: return '🔔';
+            }
+        }
+
+        // Play notification sound
+        function playNotificationSound() {
+            // Create a simple beep sound using Web Audio API
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+                // Fallback: no sound if Web Audio API is not supported
+            }
+        }
+
+        // Check for new activities periodically
+        function checkForNewActivities() {
+            loadActivitiesFromStorage();
+            
+            const newActivities = activityLog.filter(activity => {
+                const activityTime = new Date(activity.timestamp).getTime();
+                return activityTime > lastActivityCheck && activity.user !== currentUser.displayName;
+            });
+            
+            newActivities.forEach(activity => {
+                showActivityNotification(activity);
+            });
+            
+            lastActivityCheck = Date.now();
+            
+            // Update recent activities display
+            loadRecentActivities();
+        }
+
+        // Enhanced recent activities loader
+        function loadRecentActivities() {
+            const container = document.getElementById('recentActivities');
+            
+            // Combine transactions and activity log
+            const allActivities = [];
+            
+            // Add transaction activities
+            transactions.slice(0, 3).forEach(transaction => {
+                const item = items.find(i => i.code === transaction.code);
+                const itemName = item ? item.name : 'Unknown Item';
+                
+                allActivities.push({
+                    type: transaction.type === 'masuk' ? 'transaction_in' : 'transaction_out',
+                    message: `${transaction.type === 'masuk' ? 'Barang Masuk' : 'Barang Keluar'}: ${itemName} (${transaction.quantity} unit)`,
+                    time: `${transaction.time} • ${new Date(transaction.date).toLocaleDateString('id-ID')}`,
+                    user: 'Warehouse Staff',
+                    timestamp: new Date(transaction.date + 'T' + transaction.time).getTime()
+                });
+            });
+            
+            // Add recent activity log entries
+            activityLog.slice(0, 5).forEach(activity => {
+                allActivities.push({
+                    type: activity.type,
+                    message: activity.message,
+                    time: new Date(activity.timestamp).toLocaleString('id-ID', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    }),
+                    user: activity.user,
+                    timestamp: new Date(activity.timestamp).getTime()
+                });
+            });
+            
+            // Sort by timestamp (newest first)
+            allActivities.sort((a, b) => b.timestamp - a.timestamp);
+            
+            container.innerHTML = '';
+            allActivities.slice(0, 5).forEach(activity => {
+                const activityDiv = document.createElement('div');
+                activityDiv.className = 'flex items-center space-x-4 p-3 bg-gray-50 rounded-lg';
+                
+                const iconClass = activity.type.includes('in') || activity.type === 'item_added' ? 
+                    'bg-green-100 text-green-600' : 
+                    activity.type.includes('out') ? 'bg-red-100 text-red-600' :
+                    activity.type.includes('approved') ? 'bg-green-100 text-green-600' :
+                    activity.type.includes('rejected') ? 'bg-red-100 text-red-600' :
+                    'bg-blue-100 text-blue-600';
+                
+                activityDiv.innerHTML = `
+                    <div class="${iconClass} p-2 rounded-full">
+                        <span class="text-sm">${getActivityIcon(activity.type)}</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-900">${activity.message}</p>
+                        <p class="text-xs text-gray-500">${activity.time} • oleh ${activity.user}</p>
+                    </div>
+                `;
+                
+                container.appendChild(activityDiv);
+            });
+        }
+
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             // Set current month and year for reports
@@ -2160,9 +2409,16 @@
             document.getElementById('reportMonth').value = now.getMonth() + 1;
             document.getElementById('reportYear').value = now.getFullYear();
             
+            // Load activities from storage
+            loadActivitiesFromStorage();
+            lastActivityCheck = Date.now();
+            
             // Update notification badge every 30 seconds
             setInterval(updateNotificationBadge, 30000);
+            
+            // Check for new activities every 3 seconds
+            setInterval(checkForNewActivities, 3000);
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98476511b66d4fef',t:'MTc1ODc3MDUyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98477cb6830f394e',t:'MTc1ODc3MTQ5MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
