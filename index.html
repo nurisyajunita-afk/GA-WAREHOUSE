@@ -2639,9 +2639,47 @@
             }
         }
 
-        // Check for new activities periodically
+        // Check for new activities and data changes periodically
         function checkForNewActivities() {
+            // Reload all data from localStorage to get updates from other tabs/devices
+            const oldItemsLength = items.length;
+            const oldRequestsLength = requests.length;
+            const oldTransactionsLength = transactions.length;
+            
+            loadDataFromStorage();
             loadActivitiesFromStorage();
+            
+            // Check if data has changed (new items, requests, or transactions)
+            let dataChanged = false;
+            if (items.length !== oldItemsLength || 
+                requests.length !== oldRequestsLength || 
+                transactions.length !== oldTransactionsLength) {
+                dataChanged = true;
+            }
+            
+            // If we're on a relevant section and data changed, refresh the display
+            if (dataChanged) {
+                const currentSection = document.querySelector('.section:not(.hidden)');
+                if (currentSection) {
+                    const sectionId = currentSection.id;
+                    if (sectionId === 'inventory') {
+                        loadItems();
+                    } else if (sectionId === 'requests') {
+                        loadRequests();
+                        populateRequestItems();
+                    } else if (sectionId === 'transactions') {
+                        loadTransactions();
+                        populateTransactionItems();
+                    } else if (sectionId === 'dashboard') {
+                        updateDashboardStats();
+                        loadRecentActivities();
+                    }
+                }
+                
+                // Always update notification badge and dashboard stats
+                updateNotificationBadge();
+                updateDashboardStats();
+            }
             
             const newActivities = activityLog.filter(activity => {
                 const activityTime = new Date(activity.timestamp).getTime();
@@ -2750,7 +2788,50 @@
             
             // Check for new activities every 3 seconds
             setInterval(checkForNewActivities, 3000);
+            
+            // Listen for localStorage changes from other tabs/windows
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'warehouseItems' || e.key === 'warehouseRequests' || 
+                    e.key === 'warehouseTransactions' || e.key === 'warehouseCounters' || 
+                    e.key === 'warehouseActivities') {
+                    
+                    // Reload data immediately when localStorage changes
+                    loadDataFromStorage();
+                    loadActivitiesFromStorage();
+                    
+                    // Refresh current section
+                    const currentSection = document.querySelector('.section:not(.hidden)');
+                    if (currentSection) {
+                        const sectionId = currentSection.id;
+                        if (sectionId === 'inventory') {
+                            loadItems();
+                        } else if (sectionId === 'requests') {
+                            loadRequests();
+                            populateRequestItems();
+                        } else if (sectionId === 'transactions') {
+                            loadTransactions();
+                            populateTransactionItems();
+                        } else if (sectionId === 'dashboard') {
+                            updateDashboardStats();
+                            loadRecentActivities();
+                        }
+                    }
+                    
+                    // Always update notification badge and dashboard stats
+                    updateNotificationBadge();
+                    updateDashboardStats();
+                    
+                    // Show notification for new activities
+                    if (e.key === 'warehouseActivities' && e.newValue) {
+                        const newActivities = JSON.parse(e.newValue);
+                        const latestActivity = newActivities[0];
+                        if (latestActivity && latestActivity.user !== currentUser.displayName) {
+                            showActivityNotification(latestActivity);
+                        }
+                    }
+                }
+            });
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9847b389554d4fef',t:'MTc1ODc3MzczNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'984f636b41b4a3d9',t:'MTc1ODg1NDM0MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
